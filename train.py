@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_addons as tfa
 from utils.DatasetAPI import mscoco_dataset
 import os, sys
 import argparse
@@ -19,7 +20,21 @@ def train(enc_dec, block, input_img):
         enc_feats.append(x[0])
         skip_feats.append(x[1])
         x = x[0]
-
+    i = 0
+    if block == 3:
+        for feature in reversed(enc_feats):
+            '''
+            1. instance norm
+            2. maxPooling
+            3. concatenate
+            '''
+            add = tfa.layers.InstanceNormalization()(feature)
+            size = 2**i
+            add = tf.keras.layers.MaxPool2D(pool_size=(size,size), strides=size)(add)
+            x = tf.concat([x, add], 3)
+            i+=1
+        x = tf.keras.layers.Conv2D(512, kernel_size=1, strides=1, padding='valid')(x)
+    
     dec_feats = []
     for l in reversed(range(block+1)):
         x = enc_dec.decoder(l, x, skip=skip_feats[l])
