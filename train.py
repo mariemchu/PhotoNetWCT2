@@ -20,20 +20,9 @@ def train(enc_dec, block, input_img):
         enc_feats.append(x[0])
         skip_feats.append(x[1])
         x = x[0]
-    i = 1
+
     if block == 3:
-        for feature in reversed(enc_feats[:-1]):
-            '''
-            1. instance norm
-            2. maxPooling
-            3. concatenate
-            '''
-            add = tfa.layers.InstanceNormalization()(feature)
-            size = 2**i
-            add = tf.keras.layers.MaxPool2D(pool_size=(size,size), strides=size)(add)
-            x = tf.concat([x, add], 3)
-            i+=1
-        x = tf.keras.layers.Conv2D(512, kernel_size=1, strides=1, padding='valid')(x)
+        x = enc_dec.bfa(x, enc_feats, EXCLUDED)
     
     dec_feats = []
     for l in reversed(range(block+1)):
@@ -88,12 +77,16 @@ parser.add_argument("--saveto", '-s', type=str, default='./saved_decoder/relu/',
 # It is not necessary to use MS-COCO and the image preprocessing specified in the file at './utils/DatasetAPI.py'.
 parser.add_argument("--dataset", '-d', type=str, default='./MSCOCO/train2017', 
                     help="the path to the training dataset (MSCOCO)")
+    
+parser.add_argument("--bfaexclude", '-b', type=int, default=0, 
+                    help="last x blocks to exclude from bfa")
 
 args = parser.parse_args()
 
+EXCLUDED=args.bfaexclude
 
 if args.feature == 'relu':
-    from utils.model_relu import VggDecoder, VggEncoder
+    from utils.model_relu import VggDecoder, VggEncoder, BFA
 else:
     from utils.model_conv import VggDecoder, VggEncoder
     
@@ -102,7 +95,8 @@ class VggEncDec(tf.keras.Model):
         super(VggEncDec, self).__init__()
         self.encoder = VggEncoder()
         self.decoder = VggDecoder()
-        self.encoder.load_weights(enc_path)        
+        self.encoder.load_weights(enc_path)
+        self.bfa = BFA()        
 
 
 enc_dec = VggEncDec(args.encoder)
@@ -127,7 +121,9 @@ for block in blocks:
     
     # warm up
     train(enc_dec, block, tf.random.normal([1, 256, 256,3])) 
-    weights = enc_dec.decoder.btnecks[block].trainable_weights
+    weights = enc_dec.decoder.btnecks[block].trainable_weights 
+    if block == 3:
+        weights += enc_dec.bfa.model.trainable_weights
     for epoch in range(args.epochs[block]):
         for i, imgs in enumerate(ds):
             with tf.GradientTape() as tape:
@@ -139,8 +135,6 @@ for block in blocks:
             if (i+1) % 10 == 0:
                 to_show = f"Block: {block}, Epoch: {epoch+1}, iter: {i+1}, loss: {', '.join(map(lambda x: str(x.numpy()), loss))}"
                 print(to_show)
-            if i == 1:
-                break
         manager.save()
 
     if block == 3:

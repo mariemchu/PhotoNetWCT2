@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 from tensorflow.keras import layers, Model
 import csv
 import numpy as np
@@ -75,7 +76,30 @@ def create_btneck(bt_layers, n_channels):
 
     return tf.keras.Model(inputs=[input_layer, skip_layer], outputs=x)
     
-    
+class BFA(tf.keras.Model):
+    def __init__(self):
+        super(BFA, self).__init__()
+        self.model = tf.keras.Model()
+    def call(self, input_tensor, enc_feats, exclude_start_from_back):
+        input_layer = layers.Input(shape=(None, None, input_tensor.shape[3]))
+        i = exclude_start_from_back
+        if i > 0:
+            enc_feats = enc_feats[:-i]
+        out = input_layer
+        for feature in reversed(enc_feats):
+            '''
+            1. instance norm
+            2. maxPooling
+            3. concatenate
+            '''
+            add = tfa.layers.InstanceNormalization()(feature)
+            size = 2**i
+            add = tf.keras.layers.MaxPool2D(pool_size=(size,size), strides=size)(add)
+            out = tf.concat([out, add], 3)
+            i+=1
+        out = tf.keras.layers.Conv2D(512, kernel_size=1, strides=1, padding='valid')(out)
+        self.model = tf.keras.Model(inputs=input_layer, outputs = out)
+        return self.model(input_tensor)
 class VggDecoder(tf.keras.Model):
     def __init__(self):
         super(VggDecoder, self).__init__()
