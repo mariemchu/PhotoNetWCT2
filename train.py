@@ -20,9 +20,9 @@ def train(enc_dec, block, input_img):
         enc_feats.append(x[0])
         skip_feats.append(x[1])
         x = x[0]
-    i = 0
+    i = 1
     if block == 3:
-        for feature in reversed(enc_feats):
+        for feature in reversed(enc_feats[:-1]):
             '''
             1. instance norm
             2. maxPooling
@@ -137,8 +137,10 @@ for block in blocks:
             grads = tape.gradient(_loss, weights)
             optimizer.apply_gradients(zip(grads, weights))
             if (i+1) % 10 == 0:
-                to_show = f"Epoch: {epoch+1}, iter: {i+1}, loss: {', '.join(map(lambda x: str(x.numpy()), loss))}"
+                to_show = f"Block: {block}, Epoch: {epoch+1}, iter: {i+1}, loss: {', '.join(map(lambda x: str(x.numpy()), loss))}"
                 print(to_show)
+            if i == 1:
+                break
         manager.save()
 
     if block == 3:
