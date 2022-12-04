@@ -76,30 +76,48 @@ def create_btneck(bt_layers, n_channels):
 
     return tf.keras.Model(inputs=[input_layer, skip_layer], outputs=x)
     
+def create_aggregate(input_n, feature_n, i):
+    input_layer = layers.Input(shape=(None, None, input_n))
+    feature_layer = layers.Input(shape=(None, None, feature_n))
+    temp = tfa.layers.InstanceNormalization()(feature_layer)
+    size = 2**i
+    temp = tf.keras.layers.MaxPool2D(pool_size=(size,size), strides=size)(temp)
+    out = tf.concat([input_layer,temp], 3)
+    return tf.keras.Model(inputs=[input_layer,feature_layer], outputs=out)
+    
+ 
 class BFA(tf.keras.Model):
-    def __init__(self):
+    def __init__(self, excludeNumber):
         super(BFA, self).__init__()
-        self.model = tf.keras.Model()
-    def call(self, input_tensor, enc_feats, exclude_start_from_back):
-        input_layer = layers.Input(shape=(None, None, input_tensor.shape[3]))
-        i = exclude_start_from_back
-        if i > 0:
-            enc_feats = enc_feats[:-i]
-        out = input_layer
-        for feature in reversed(enc_feats):
-            '''
-            1. instance norm
-            2. maxPooling
-            3. concatenate
-            '''
-            add = tfa.layers.InstanceNormalization()(feature)
-            size = 2**i
-            add = tf.keras.layers.MaxPool2D(pool_size=(size,size), strides=size)(add)
-            out = tf.concat([out, add], 3)
-            i+=1
-        out = tf.keras.layers.Conv2D(512, kernel_size=1, strides=1, padding='valid')(out)
-        self.model = tf.keras.Model(inputs=input_layer, outputs = out)
-        return self.model(input_tensor)
+        self.btnecks=[]
+        self.excludeNumber = excludeNumber
+        total_channels = 512
+        if excludeNumber < 4:
+            self.btnecks.append(create_aggregate(total_channels, 64, 3))
+            total_channels = 512+64
+        if excludeNumber < 3:
+            self.btnecks.append(create_aggregate(total_channels, 128, 2))
+            total_channels = 512+64+128
+        if excludeNumber < 2:
+            self.btnecks.append(create_aggregate(total_channels, 256, 1))
+            total_channels = 512+64+128+256
+        if excludeNumber < 1:
+            self.btnecks.append(create_aggregate(total_channels, 512, 0))
+            total_channels =  512+64+128+256+512
+        
+        
+        input_layer = layers.Input(shape=(None, None, total_channels))
+        out = tf.keras.layers.Conv2D(512, kernel_size=1, strides=1, padding='valid')(input_layer)
+        self.btnecks.append(tf.keras.Model(inputs=[input_layer], outputs = out))
+
+    def call(self, i, input_tensor, feature_tensor): #enc_feats, exclude_start_from_back):
+        if i == 4 - self.excludeNumber:
+            input_tensor = [input_tensor]
+        else:
+            input_tensor = [input_tensor, feature_tensor]
+        bt_out = self.btnecks[i](input_tensor)
+        return bt_out
+      
 class VggDecoder(tf.keras.Model):
     def __init__(self):
         super(VggDecoder, self).__init__()

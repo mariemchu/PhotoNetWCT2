@@ -22,8 +22,15 @@ def train(enc_dec, block, input_img):
         x = x[0]
 
     if block == 3:
-        x = enc_dec.bfa(x, enc_feats, EXCLUDED)
-    
+        bfa_feats = enc_feats
+        if EXCLUDED > 0:
+            bfa_feats = enc_feats[:-EXCLUDED]
+        i = 0
+        for feature in (bfa_feats):
+            x = enc_dec.bfa(i, x, feature)
+            i+=1
+        x = enc_dec.bfa(i, x, feature)
+
     dec_feats = []
     for l in reversed(range(block+1)):
         x = enc_dec.decoder(l, x, skip=skip_feats[l])
@@ -96,7 +103,7 @@ class VggEncDec(tf.keras.Model):
         self.encoder = VggEncoder()
         self.decoder = VggDecoder()
         self.encoder.load_weights(enc_path)
-        self.bfa = BFA()        
+        self.bfa = BFA(EXCLUDED)        
 
 
 enc_dec = VggEncDec(args.encoder)
@@ -121,9 +128,11 @@ for block in blocks:
     
     # warm up
     train(enc_dec, block, tf.random.normal([1, 256, 256,3])) 
-    weights = enc_dec.decoder.btnecks[block].trainable_weights 
+    weights = []
     if block == 3:
-        weights += enc_dec.bfa.model.trainable_weights
+        for feature in enc_dec.bfa.btnecks:
+            weights += feature.trainable_weights
+    weights += enc_dec.decoder.btnecks[block].trainable_weights 
     for epoch in range(args.epochs[block]):
         for i, imgs in enumerate(ds):
             with tf.GradientTape() as tape:
@@ -135,6 +144,8 @@ for block in blocks:
             if (i+1) % 10 == 0:
                 to_show = f"Block: {block}, Epoch: {epoch+1}, iter: {i+1}, loss: {', '.join(map(lambda x: str(x.numpy()), loss))}"
                 print(to_show)
+            if i ==1:
+                break
         manager.save()
 
     if block == 3:
