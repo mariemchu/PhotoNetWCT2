@@ -114,6 +114,8 @@ class BFA(tf.keras.Model):
             input_tensor = [input_tensor]
         else:
             input_tensor = [input_tensor, feature_tensor]
+
+        
         bt_out = self.btnecks[i](input_tensor)
         return bt_out
       

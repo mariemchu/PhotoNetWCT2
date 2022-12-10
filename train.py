@@ -132,6 +132,7 @@ for block in blocks:
     if block == 3:
         for feature in enc_dec.bfa.btnecks:
             weights += feature.trainable_weights
+
     weights += enc_dec.decoder.btnecks[block].trainable_weights 
     for epoch in range(args.epochs[block]):
         for i, imgs in enumerate(ds):
@@ -144,8 +145,6 @@ for block in blocks:
             if (i+1) % 10 == 0:
                 to_show = f"Block: {block}, Epoch: {epoch+1}, iter: {i+1}, loss: {', '.join(map(lambda x: str(x.numpy()), loss))}"
                 print(to_show)
-            if i==1:
-                break
         manager.save()
 
     if block == 3:
