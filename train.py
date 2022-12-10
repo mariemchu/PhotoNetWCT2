@@ -29,7 +29,7 @@ def train(enc_dec, block, input_img):
         for feature in (bfa_feats):
             x = enc_dec.bfa(i, x, feature)
             i+=1
-        x = enc_dec.bfa(i, x, feature)
+        x = enc_dec.bfa(i, x, None)
 
     dec_feats = []
     for l in reversed(range(block+1)):
