@@ -4,7 +4,7 @@ import tensorflow_addons as tfa
 from utils.DatasetAPI import mscoco_dataset
 import os, sys
 import argparse
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
 
 
@@ -144,12 +144,13 @@ for block in blocks:
             if (i+1) % 10 == 0:
                 to_show = f"Block: {block}, Epoch: {epoch+1}, iter: {i+1}, loss: {', '.join(map(lambda x: str(x.numpy()), loss))}"
                 print(to_show)
-            if i ==1:
+            if i==1:
                 break
         manager.save()
 
     if block == 3:
         enc_dec.decoder.save_weights(f"{os.path.join(args.saveto, 'decoder')}")
+        enc_dec.bfa.save_weights(f"{os.path.join(args.saveto, 'bfa')}")
         
 
         

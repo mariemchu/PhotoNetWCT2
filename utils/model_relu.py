@@ -82,7 +82,7 @@ def create_aggregate(input_n, feature_n, i):
     temp = tfa.layers.InstanceNormalization()(feature_layer)
     size = 2**i
     temp = tf.keras.layers.MaxPool2D(pool_size=(size,size), strides=size)(temp)
-    out = tf.concat([input_layer,temp], 3)
+    out = tf.keras.layers.Concatenate(3)([input_layer, temp])
     return tf.keras.Model(inputs=[input_layer,feature_layer], outputs=out)
     
  
@@ -104,8 +104,7 @@ class BFA(tf.keras.Model):
         if excludeNumber < 1:
             self.btnecks.append(create_aggregate(total_channels, 512, 0))
             total_channels =  512+64+128+256+512
-        
-        
+
         input_layer = layers.Input(shape=(None, None, total_channels))
         out = tf.keras.layers.Conv2D(512, kernel_size=1, strides=1, padding='valid')(input_layer)
         self.btnecks.append(tf.keras.Model(inputs=[input_layer], outputs = out))
