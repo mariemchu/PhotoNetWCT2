@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_addons as tfa
 from utils.DatasetAPI import mscoco_dataset
+from utils.model_relu import VggDecoder, VggEncoder, BFA
 import os, sys
 import argparse
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -75,7 +76,6 @@ parser.add_argument('--epochs', '-i', type=int, nargs=4, default=[10, 10, 10, 10
 Choose to reproduce the convN1 or reluN1 features of the pretrained VGG in the decoder.
 By default, the relu features are chosen here.
 '''
-parser.add_argument('--feature', '-f', type=str, choices=['relu', 'conv'], default='relu')    
 parser.add_argument("--encoder", '-e', type=str, default='./ckpts/ckpts-relu/encoder',
                     help="the path to the pretrained VGG encoder")
 parser.add_argument("--saveto", '-s', type=str, default='./saved_decoder/relu/',
@@ -91,11 +91,6 @@ parser.add_argument("--bfaexclude", '-b', type=int, default=0,
 args = parser.parse_args()
 
 EXCLUDED=args.bfaexclude
-
-if args.feature == 'relu':
-    from utils.model_relu import VggDecoder, VggEncoder, BFA
-else:
-    from utils.model_conv import VggDecoder, VggEncoder
     
 class VggEncDec(tf.keras.Model):
     def __init__(self, enc_path):
